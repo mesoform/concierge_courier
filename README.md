@@ -27,8 +27,8 @@ Ran 3 tests in 0.002s
 
 OK
 ```
-Please note that number of tests ran and time to run may vary as this
-project develops.
+_Note that number of tests ran and time to run may vary as this
+project develops._
 
 
 __Warning:__ Please always make sure there are more than 0 tests ran
