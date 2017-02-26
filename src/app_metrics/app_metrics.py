@@ -8,13 +8,31 @@ import sys
 from subprocess import call
 import time
 
-# We want to return how long it took for the script to run
-startTime = time.time()
-
-
 # This is needed for querying Consul API but should be something passed
 #  as a parameter and appended to a URL to make generic
 # nodeName = socket.gethostname()
+
+"""
+Hide start time to the external world by protecting it with __ prefix.
+"""
+__start_time = None
+
+
+def __mark_start_time():
+    """
+    Initializes the _start_time variable with the current time.
+    Note: method will always overwrite any previous value set to that variable
+    """
+    global __start_time
+    __start_time = time.time()
+
+
+def __mark_end_time():
+    """
+    Prints to the standard out the difference in milliseconds between
+    current time and the value contained in the _start_time variable
+    """
+    print(time.time() - __start_time)
 
 
 def discover_timers():
@@ -129,7 +147,6 @@ def send_metrics(metric_type):
                        '-c /etc/coprocesses/zabbix/zabbix_agentd.conf ' \
                        '-i {} >/dev/null'
     call(command_template.format(filename), shell=True)
-    print(time.time() - startTime)
 
 
 def __get_metric_record(timer_name: str,
@@ -170,7 +187,13 @@ the following lines aren't loaded and ran as well
 if __name__ == '__main__':
     action = sys.argv[1].lower()
     url = sys.argv[2].lower()
-    if action == 'query_timers':
+
+    # We want to return how long it took for the script to run
+    __mark_start_time()
+
+    if action is 'query_timers':
         discover_timers()
-    elif action == 'get_timers':
+    elif action is 'get_timers':
         get_timers()
+
+    __mark_end_time()
