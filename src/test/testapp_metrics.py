@@ -29,7 +29,7 @@ class AppMetricsTest(TestCase):
                                    metric_value='')
 
         print("get_metric_record returned: \n'{}'".format(record))
-        self.assertEquals(record, "- timer[.] \n")
+        self.assertEqual(record, "- timer[.] \n")
 
     @staticmethod
     def test_consume_metric_records():
