@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from unittest import TestLoader, TestCase
 
 from mock import MagicMock
@@ -54,7 +56,7 @@ class AppMetricsTest(TestCase):
              mock_call("- timer[foo.mean_rate] 2\n"),
              mock_call("- timer[bar.1m_rate] 5\n"),
              mock_call("- timer[bar.5m_rate] 6\n"),
-             mock_call("- timer[bar.15m_rate] 3.4\n")], any_order=False)
+             mock_call("- timer[bar.15m_rate] 3.4\n")])
 
 
 def suite():
