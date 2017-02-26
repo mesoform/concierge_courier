@@ -33,15 +33,21 @@ def discover_timers():
     # print json.dumps(discovery_list, indent=4, sort_keys=True)
     #
 
-    discovery_list = {'data': []}
+    """ Temporarily keep code for reference """
+    # discovery_list = {'data': []}
+    # with open("/tmp/metrics.json", "r") as metrics_file:
+    #     keys = metrics_file.read()
+    #     keys = json.loads(keys)
+    #     for key in keys['timers']:
+    #         zbx_item = {"{#TIMER}": key}
+    #         discovery_list['data'].append(zbx_item)
 
-    with open("/tmp/metrics.json", "r") as metrics:
-        keys = metrics.read()
+    with open("/tmp/metrics.json", "r") as metrics_file:
+        keys = metrics_file.read()
         keys_json = json.loads(keys)
-
-        for key in keys_json['timers']:
-            zbx_item = {"{#TIMER}": key}
-            discovery_list['data'].append(zbx_item)
+        # Use list accumulation to fill data dictionary in one go
+        discovery_list = \
+            {'data': [{"{#TIMER}": key} for key in keys_json['timers']]}
         print(__as_json(discovery_list))
 
 
@@ -61,28 +67,54 @@ def get_timers():
     # using with open() as file saves having to close of the file at the end.
     with open("/tmp/metrics.json", "r") as metrics_file:
         keys = metrics_file.read()
-        keys = json.loads(keys)
-        write_metrics("/tmp/timer_metrics_zabbix.sender", keys['timers'])
+        keys_json = json.loads(keys)
+        write_metrics("/tmp/timer_metrics_zabbix.sender", keys_json['timers'])
     send_metrics("timer")
 
 
 def write_metrics(filename, timers_dict):
-    with open(filename, "w") as sender_file:
-        for timer_name, metrics in timers_dict.items():
-            # print('timer_name=\'{}\', value={}'.format(timer_name, metrics))
+    """
+    Loops through the items in the input timers dictionary,
+    collects each metric contained in such a timer item and
+    writes a log of that in the file represented by the input filename
 
-            # dict.items() return a copy of the dictionary
-            # as a list in K/V pair format key, value
-            for metric_name, metric_value in metrics.items():
-                sender_file.write(
-                    __get_metric_record(timer_name,
-                                        metric_name,
-                                        metric_value)
-                )
-                # - timer[test.test-timer.count] 45
-                #    zbx_item = {"{#TIMER}": key}
-                #    discovery_list['data'].append(zbx_item)
-                # print json.dumps(discovery_list, indent=4, sort_keys=True)
+    :param filename:    file to write the metrics into
+    :param timers_dict: metrics source dictionary
+    """
+    with open(filename, "w") as sender_file:
+        consume_metric_records(timers_dict, sender_file.write)
+
+
+def consume_metric_records(timers_dict, metric_record_consumer):
+    """
+    Loops through the items in the input timers dictionary,
+    creates a string record representing each metric contained in
+    such a timer item and sends it for processing
+    to the consumer input function
+
+    :param timers_dict:            dictionary containing timers that represent
+                                   objects each property of which is a
+                                   separate metric value
+    :param metric_record_consumer: callback function for consuming each
+                                   constructed metric record string.
+                                   This callback will be invoked immediately
+                                   upon record acquisition so that progress
+                                   is incremental
+    """
+    for timer_name, metrics in timers_dict.items():
+        # print('timer_name=\'{}\', value={}'.format(timer_name, metrics))
+
+        # dict.items() return a copy of the dictionary
+        # as a list in K/V pair format key, value
+        for metric_name, metric_value in metrics.items():
+            metric_record_consumer(
+                __get_metric_record(timer_name,
+                                    metric_name,
+                                    metric_value)
+            )
+            # zbx_item = {"{#TIMER}": key}
+            # discovery_list['data'].append(zbx_item)
+            # print json.dumps(discovery_list, indent=4, sort_keys=True)
 
 
 def send_metrics(metric_type):
@@ -100,14 +132,21 @@ def send_metrics(metric_type):
     print(time.time() - startTime)
 
 
-def __get_metric_record(timer_name: str, metric_name: str, metric_value: str):
+def __get_metric_record(timer_name: str,
+                        metric_name: str, metric_value: object):
     """
-    Creates a Zabbix processable string line denoting this metric value
-    :param timer_name: timer that recorded the metric
-    :param metric_name: metric property name
+    Creates a Zabbix processable string line denoting this metric value.
+    Line is also terminated with a carriage return at the end.
+
+    Example:
+    Input: timer_name='test.test-timer', metric_name='count', metric_value=45
+    Output: '- timer[test.test-timer.count] 45\n'
+
+    :param timer_name:   timer that recorded the metric
+    :param metric_name:  metric property name
     :param metric_value: recorded metric value
-    :return: String in the format:
-    '- timer[{timer_name}.{metric_name}] {metric_value}'
+    :return:             String in the appropriate format:
+                         '- timer[{timer_name}.{metric_name}] {metric_value}'
     """
     # python3 doesn't need to stipulate the index location inside of {}
     return "- timer[{0}.{1}] {2}\n" \
