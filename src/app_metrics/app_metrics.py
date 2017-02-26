@@ -126,9 +126,7 @@ def consume_metric_records(timers_dict, metric_record_consumer):
         # as a list in K/V pair format key, value
         for metric_name, metric_value in metrics.items():
             metric_record_consumer(
-                __get_metric_record(timer_name,
-                                    metric_name,
-                                    metric_value)
+                get_metric_record(timer_name, metric_name, metric_value)
             )
             # zbx_item = {"{#TIMER}": key}
             # discovery_list['data'].append(zbx_item)
@@ -149,8 +147,8 @@ def send_metrics(metric_type):
     call(command_template.format(filename), shell=True)
 
 
-def __get_metric_record(timer_name: str,
-                        metric_name: str, metric_value: object):
+def get_metric_record(timer_name: str,
+                      metric_name: str, metric_value: object):
     """
     Creates a Zabbix processable string line denoting this metric value.
     Line is also terminated with a carriage return at the end.
