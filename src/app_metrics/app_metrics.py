@@ -196,9 +196,9 @@ if __name__ == '__main__':
     # We want to return how long it took for the script to run
     __mark_start_time()
 
-    if action is 'query_timers':
+    if action == 'query_timers':
         discover_timers()
-    elif action is 'get_timers':
+    elif action == 'get_timers':
         get_timers()
 
     __mark_end_time()
