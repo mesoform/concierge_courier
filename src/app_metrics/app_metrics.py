@@ -147,8 +147,7 @@ def send_metrics(metric_type):
     call(command_template.format(filename), shell=True)
 
 
-def get_metric_record(timer_name: str,
-                      metric_name: str, metric_value: object):
+def get_metric_record(timer_name, metric_name, metric_value):
     """
     Creates a Zabbix processable string line denoting this metric value.
     Line is also terminated with a carriage return at the end.
@@ -157,10 +156,10 @@ def get_metric_record(timer_name: str,
     Input: timer_name='test.test-timer', metric_name='count', metric_value=45
     Output: '- timer[test.test-timer.count] 45\n'
 
-    :param timer_name:   timer that recorded the metric
-    :param metric_name:  metric property name
-    :param metric_value: recorded metric value
-    :return:             String in the appropriate format:
+    :param timer_name:   str: timer that recorded the metric
+    :param metric_name:  str: metric property name
+    :param metric_value: object: recorded metric value
+    :return:             str: String in the appropriate format:
                          '- timer[{timer_name}.{metric_name}] {metric_value}'
     """
     # python3 doesn't need to stipulate the index location inside of {}
@@ -168,12 +167,12 @@ def get_metric_record(timer_name: str,
         .format(timer_name, metric_name, metric_value)
 
 
-def __as_json(raw_dict: dict):
+def __as_json(raw_dict):
     """
     Converts any input dictionary to a pretty printed JSON
     string with sorted keys
-    :param raw_dict: dictionary object to convert
-    :return: a valid json string
+    :param raw_dict: dict: dictionary object to convert
+    :return:         str: a valid json string
     """
     return json.dumps(raw_dict, indent=4, sort_keys=True)
 
