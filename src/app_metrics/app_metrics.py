@@ -81,52 +81,57 @@ def get_timers():
     #        else:
     #            status = 0
     # print status
+    metric_type = "timer"
 
     # using with open() as file saves having to close of the file at the end.
     with open("/tmp/metrics.json", "r") as metrics_file:
         keys = metrics_file.read()
         keys_json = json.loads(keys)
-        write_metrics("/tmp/timer_metrics_zabbix.sender", keys_json['timers'])
-    send_metrics("timer")
+        write_metrics("/tmp/timer_metrics_zabbix.sender",
+                      keys_json['timers'],
+                      metric_type)
+    send_metrics(metric_type)
 
 
-def write_metrics(filename, timers_dict):
+def write_metrics(filename, metrics_dict, metric_type):
     """
-    Loops through the items in the input timers dictionary,
-    collects each metric contained in such a timer item and
-    writes a log of that in the file represented by the input filename
+    Loops through the items in the input dictionary,
+    collects each metric contained in such a dictionary item and
+    writes a record of that in the file represented by the input filename
 
     :param filename:    file to write the metrics into
-    :param timers_dict: metrics source dictionary
+    :param metrics_dict: metrics source dictionary
+    :param metric_type: what type the metric is. E.g. gauge, timer, etc.
     """
     with open(filename, "w") as sender_file:
-        consume_metric_records(timers_dict, sender_file.write)
+        consume_metric_records(metrics_dict, sender_file.write, metric_type)
 
 
-def consume_metric_records(timers_dict, metric_record_consumer):
+def consume_metric_records(metrics_dict, metric_consumer_fn, metric_type):
     """
     Loops through the items in the input timers dictionary,
     creates a string record representing each metric contained in
     such a timer item and sends it for processing
     to the consumer input function
 
-    :param timers_dict:            dictionary containing timers that represent
+    :param metrics_dict:           dictionary containing metrics that represent
                                    objects each property of which is a
                                    separate metric value
-    :param metric_record_consumer: callback function for consuming each
+    :param metric_consumer_fn:     callback function for consuming each
                                    constructed metric record string.
                                    This callback will be invoked immediately
                                    upon record acquisition so that progress
                                    is incremental
+    :param metric_type:            what type the metric is.
     """
-    for timer_name, metrics in timers_dict.items():
-        # print('timer_name=\'{}\', value={}'.format(timer_name, metrics))
+    for metric_set_name, metric_set in metrics_dict.items():
 
         # dict.items() return a copy of the dictionary
         # as a list in K/V pair format key, value
-        for metric_name, metric_value in metrics.items():
-            metric_record_consumer(
-                get_metric_record(timer_name, metric_name, metric_value)
+        for metric_key, metric_value in metric_set.items():
+            metric_consumer_fn(
+                get_metric_record(metric_set_name, metric_key, metric_value,
+                                  metric_type)
             )
             # zbx_item = {"{#TIMER}": key}
             # discovery_list['data'].append(zbx_item)
@@ -134,7 +139,7 @@ def consume_metric_records(timers_dict, metric_record_consumer):
 
 
 def send_metrics(metric_type):
-    filename = "/tmp/" + metric_type + "_metrics_zabbix.sender"
+    filename = "/tmp/{}_metrics_zabbix.sender".format(metric_type)
     # For troubleshooting connectivity:
     # call("zabbix_sender -vv -c /etc/coprocesses/zabbix/zabbix_agentd.conf" +
     #      "-i " + filename, shell=True)
@@ -147,24 +152,27 @@ def send_metrics(metric_type):
     call(command_template.format(filename), shell=True)
 
 
-def get_metric_record(timer_name, metric_name, metric_value):
+def get_metric_record(metric_set_name, metric_key, metric_value, metric_type):
     """
     Creates a Zabbix processable string line denoting this metric value.
     Line is also terminated with a carriage return at the end.
 
     Example:
-    Input: timer_name='test.test-timer', metric_name='count', metric_value=45
+    Input: metric_set_name='test.test-timer', metric_key='count',
+        metric_value=45, metric_type='timer'
     Output: '- timer[test.test-timer.count] 45\n'
+    hyphen in this output example is replaced by Zabbix for the system hostname
 
-    :param timer_name:   str: timer that recorded the metric
-    :param metric_name:  str: metric property name
-    :param metric_value: object: recorded metric value
-    :return:             str: String in the appropriate format:
-                         '- timer[{timer_name}.{metric_name}] {metric_value}'
+    :param metric_type:       str: what type the metric is.
+    :param metric_set_name:   str: name prefix of the recorded the metric
+    :param metric_key:        str: metric property name
+    :param metric_value:      object: recorded metric value
+    :return:  str: String in the appropriate format:
+              '- {metric_type}[{metric_set_name}.{metric_key}] {metric_value}'
     """
-    # python3 doesn't need to stipulate the index location inside of {}
-    return "- timer[{0}.{1}] {2}\n" \
-        .format(timer_name, metric_name, metric_value)
+    # python2.7+ doesn't need to stipulate the index location inside of {}
+    return "- {}[{}.{}] {}\n" \
+        .format(metric_type, metric_set_name, metric_key, metric_value)
 
 
 def __as_json(raw_dict):
