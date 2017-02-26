@@ -56,27 +56,31 @@ def get_timers():
     #        else:
     #            status = 0
     # print status
-    metrics = open("/tmp/metrics.json", "r")
-    keys = metrics.read()
-    keys = json.loads(keys)
-    sender = open("/tmp/timer_metrics_zabbix.sender", "w")
 
-    for each_key in keys['timers']:
-        for each_metric in keys['timers'][each_key]:
-            zbx_key = "timer[" + each_key + "." + each_metric + "]"
-            value = keys['timers'][each_key][each_metric]
-            sender.write("- " + zbx_key + " " + str(value) + "\n")
-    #    zbx_item = {"{#TIMER}": key}
-    #    discovery_list['data'].append(zbx_item)
-    # print json.dumps(discovery_list, indent=4, sort_keys=True)
-    sender.close()
-    metrics.close()
+    # using with open() as file saves having to close of the file at the end.
+    with open("/tmp/metrics.json", "r") as metrics_file:
+        keys = metrics_file.read()
+        keys = json.loads(keys)
+        with open("/tmp/timer_metrics_zabbix.sender", "w") as sender_file:
+            for timer_name, metrics in keys['timers'].items():
+                # print timer_name
+                # print metrics
+                # dict.items() return a copy of the dictionary list in K/V pair format key, value
+                for metric_name, metric_value in metrics.items():
+                    # python3 doesn't need to stipulate the index location inside of {}
+                    sender_file.write("- timer[{0}.{1}] {2}\n".format(timer_name, metric_name, metric_value))
+                    # - timer[test.test-timer.count] 45
+                    #    zbx_item = {"{#TIMER}": key}
+                    #    discovery_list['data'].append(zbx_item)
+                    # print json.dumps(discovery_list, indent=4, sort_keys=True)
     send_metrics("timer")
 
 
 def send_metrics(metric_type):
     filename = "/tmp/" + metric_type + "_metrics_zabbix.sender"
-#    call(["zabbix_sender", "-i", filename, "-c", "/etc/coprocesses/zabbix/zabbix_agentd.conf", ">/dev/null"])
+    # call(["zabbix_sender", "-i", filename, "-c", "/etc/coprocesses/zabbix/zabbix_agentd.conf", ">/dev/null"])
+    # For troubleshooting connectivity:
+    # call("zabbix_sender -vv -c /etc/coprocesses/zabbix/zabbix_agentd.conf -i " + filename, shell=True)
     call("zabbix_sender -c /etc/coprocesses/zabbix/zabbix_agentd.conf -i " + filename + " >/dev/null", shell=True)
     print time.time() - startTime
 
