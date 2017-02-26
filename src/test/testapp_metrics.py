@@ -15,21 +15,20 @@ from app_metrics.app_metrics import *
 class AppMetricsTest(TestCase):
     def test_get_get_metric_record(self):
         """ Test expected format on valid values """
-        record = get_metric_record(timer_name='foo.bar',
-                                   metric_name='mean_rate',
-                                   metric_value=0.5)
+        record = get_metric_record(metric_set_name='foo.bar',
+                                   metric_key='mean_rate',
+                                   metric_value=0.5, metric_type='timer')
 
         print("get_metric_record returned: \n'{}'".format(record))
         self.assertEquals(record, "- timer[foo.bar.mean_rate] 0.5\n")
 
     def test_get_get_metric_record_empty_values(self):
         """ Test that it doesn't break on bad input """
-        record = get_metric_record(timer_name='',
-                                   metric_name='',
-                                   metric_value='')
+        record = get_metric_record(metric_set_name='', metric_key='',
+                                   metric_value='', metric_type='')
 
         print("get_metric_record returned: \n'{}'".format(record))
-        self.assertEqual(record, "- timer[.] \n")
+        self.assertEqual(record, "- [.] \n")
 
     @staticmethod
     def test_consume_metric_records():
@@ -49,7 +48,7 @@ class AppMetricsTest(TestCase):
         mock_callback = MagicMock()
         mock_callback.write.return_value = None
 
-        consume_metric_records(test_dict, mock_callback.write)
+        consume_metric_records(test_dict, mock_callback.write, 'timer')
 
         mock_callback.write.assert_has_calls(
             [mock_call("- timer[foo.count] 5\n"),
