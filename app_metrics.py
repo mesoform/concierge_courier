@@ -40,7 +40,7 @@ def discover_timers():
     for key in keys['timers']:
         zbx_item = {"{#TIMER}": key}
         discovery_list['data'].append(zbx_item)
-    print json.dumps(discovery_list, indent=4, sort_keys=True)
+    print(json.dumps(discovery_list, indent=4, sort_keys=True))
     metrics.close()
 
 
@@ -82,7 +82,7 @@ def send_metrics(metric_type):
     # For troubleshooting connectivity:
     # call("zabbix_sender -vv -c /etc/coprocesses/zabbix/zabbix_agentd.conf -i " + filename, shell=True)
     call("zabbix_sender -c /etc/coprocesses/zabbix/zabbix_agentd.conf -i " + filename + " >/dev/null", shell=True)
-    print time.time() - startTime
+    print(time.time() - startTime)
 
 # put into an if statement so that if any of the other classes are imported, the following lines aren't loaded and ran
 # as well
