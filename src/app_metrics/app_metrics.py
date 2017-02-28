@@ -63,10 +63,15 @@ def discover_timers():
     with open("/tmp/metrics.json", "r") as metrics_file:
         keys = metrics_file.read()
         keys_json = json.loads(keys)
-        # Use list accumulation to fill data dictionary in one go
-        discovery_list = \
+        '''
+        Use list accumulation to fill data dictionary in one go.
+        The square braces here are NOT part of the output, they are
+        special characters that define a list and Python provides syntactic
+        sugar that allows it to be wrapped (e.g. "{'data': " and "}").
+        '''
+        discovery_data_dict = \
             {'data': [{"{#TIMER}": key} for key in keys_json['timers']]}
-        print(__as_json(discovery_list))
+        print(__as_json(discovery_data_dict))
 
 
 def get_timers():
@@ -85,9 +90,15 @@ def get_timers():
 
     # using with open() as file saves having to close of the file at the end.
     with open("/tmp/metrics.json", "r") as metrics_file:
+        # read file as a string, assign to keys
         keys = metrics_file.read()
+        # deserialise string to a dictionary
         keys_json = json.loads(keys)
-        write_metrics("/tmp/timer_metrics_zabbix.sender",
+        '''
+        call out to write_metrics function, passing the file it should write,
+        just the timers' objects
+        '''
+        write_metrics("/tmp/{}_metrics_zabbix.sender".format(metric_type),
                       keys_json['timers'],
                       metric_type)
     send_metrics(metric_type)
@@ -97,7 +108,10 @@ def write_metrics(filename, metrics_dict, metric_type):
     """
     Loops through the items in the input dictionary,
     collects each metric contained in such a dictionary item and
-    writes a record of that in the file represented by the input filename
+    writes a record of that in the file represented by the input filename.
+    The main purpose for having this function AND consume_metric_records is
+    so that consume_metric_records can be tested and isn't tied to opening a
+    file (e.g. output could just be print())
 
     :param filename:    file to write the metrics into
     :param metrics_dict: metrics source dictionary
@@ -109,10 +123,9 @@ def write_metrics(filename, metrics_dict, metric_type):
 
 def consume_metric_records(metrics_dict, metric_consumer_fn, metric_type):
     """
-    Loops through the items in the input timers dictionary,
-    creates a string record representing each metric contained in
-    such a timer item and sends it for processing
-    to the consumer input function
+    Loops through the items in the input dictionary, creates a string
+    record representing each metric contained in such a metric item and
+    sends it for processing to the consumer input function
 
     :param metrics_dict:           dictionary containing metrics that represent
                                    objects each property of which is a
@@ -129,6 +142,11 @@ def consume_metric_records(metrics_dict, metric_consumer_fn, metric_type):
         # dict.items() return a copy of the dictionary
         # as a list in K/V pair format key, value
         for metric_key, metric_value in metric_set.items():
+            """
+            here were passing back (callback) the returned response from
+            get_metric_record function to sender_file.write file function
+            passed to us from write metrics
+            """
             metric_consumer_fn(
                 get_metric_record(metric_set_name, metric_key, metric_value,
                                   metric_type)
@@ -139,6 +157,7 @@ def consume_metric_records(metrics_dict, metric_consumer_fn, metric_type):
 
 
 def send_metrics(metric_type):
+    # {} is being used here to be replace with metric_type (like xargs)
     filename = "/tmp/{}_metrics_zabbix.sender".format(metric_type)
     # For troubleshooting connectivity:
     # call("zabbix_sender -vv -c /etc/coprocesses/zabbix/zabbix_agentd.conf" +
@@ -170,7 +189,8 @@ def get_metric_record(metric_set_name, metric_key, metric_value, metric_type):
     :return:  str: String in the appropriate format:
               '- {metric_type}[{metric_set_name}.{metric_key}] {metric_value}'
     """
-    # python2.7+ doesn't need to stipulate the index location inside of {}
+    # python versions <2.7 require indices to be included in the braces. E.g.
+    # "- {0}[{1}.{2}] {3}
     return "- {}[{}.{}] {}\n" \
         .format(metric_type, metric_set_name, metric_key, metric_value)
 
@@ -187,18 +207,17 @@ def __as_json(raw_dict):
 
 """
 put into an if statement so that if this module is imported,
-the following lines aren't loaded and ran as well
+the following lines aren't loaded and ran as well. __name__ is
+special property
 """
 if __name__ == '__main__':
     action = sys.argv[1].lower()
     url = sys.argv[2].lower()
 
-    # We want to return how long it took for the script to run
-    __mark_start_time()
-
     if action == 'query_timers':
         discover_timers()
     elif action == 'get_timers':
+        # We want to return how long it took for the script to run
+        __mark_start_time()
         get_timers()
-
-    __mark_end_time()
+        __mark_end_time()
