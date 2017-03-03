@@ -1,0 +1,6 @@
+# Idea IDE files
+.idea/
+
+# Python
+**.pyc
+__pycache__
