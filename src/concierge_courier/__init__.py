@@ -1,3 +1,3 @@
 __all__ = [
-    'app_metrics'
+    'concierge_courier'
 ]
