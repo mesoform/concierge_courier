@@ -1,3 +1,3 @@
 __all__ = [
-    'testapp_metrics'
+    'test_courier'
 ]
