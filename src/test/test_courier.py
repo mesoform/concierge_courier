@@ -11,12 +11,12 @@ from unittest import TestLoader, TestCase
 # mock is used to simulate any dependencies by returning some predefined result
 from mock import MagicMock
 
-""" Since the app_metrics module itself imports the 'call' function
+""" Since the concierge_courier module itself imports the 'call' function
  from the 'subprocess' module, we ned to rename this one so that
  it doesn't get shadowed and can be used for testing """
 from mock import call as mock_call
 
-from app_metrics.app_metrics import *
+from concierge_courier.concierge_courier import *
 
 
 # extend TestCase class which considers every defined method in this class as a
