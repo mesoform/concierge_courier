@@ -36,6 +36,9 @@ def __mark_end_time():
 
 
 def discover_timers():
+    """
+    :return: Zabbix formatted JSON of keys 
+    """
     # discovery_list = {}
     # discovery_list['data'] = []
 
