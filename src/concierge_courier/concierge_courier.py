@@ -217,7 +217,7 @@ if __name__ == '__main__':
     action = sys.argv[1].lower()
     url = sys.argv[2].lower()
 
-    if action == 'query_timers':
+    if action == 'discover_timers':
         discover_timers()
     elif action == 'get_timers':
         # We want to return how long it took for the script to run
