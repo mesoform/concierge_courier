@@ -5,7 +5,7 @@ import sys
 
 # import requests
 # import socket
-from subprocess import call
+from subprocess import CalledProcessError, check_output
 import time
 
 # This is needed for querying Consul API but should be something passed
@@ -171,8 +171,14 @@ def send_metrics(metric_type):
     #       "-c", "/etc/coprocesses/zabbix/zabbix_agentd.conf", ">/dev/null"])
     command_template = 'zabbix_sender ' \
                        '-c /etc/coprocesses/zabbix/zabbix_agentd.conf ' \
-                       '-i {} >/dev/null'
-    call(command_template.format(filename), shell=True)
+                       '-i {} 2>&1 > /dev/null'
+    try:
+        check_output(command_template.format(filename), shell=True)
+    except CalledProcessError as e:
+        ret = e.returncode
+        if ret not in (0, 2):
+            print(0)
+            sys.exit(e.returncode)
 
 
 def get_metric_record(metric_set_name, metric_key, metric_value, metric_type):
