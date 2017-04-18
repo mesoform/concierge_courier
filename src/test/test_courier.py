@@ -1,3 +1,4 @@
+#!/usr/bin/python
 """
 allow for Python2 and Python 3 import syntax of relative and absolute imports
 used in imported modules like unittest. Suggest that absolute is needed
@@ -12,7 +13,7 @@ from unittest import TestLoader, TestCase
 from mock import MagicMock
 
 """ Since the concierge_courier module itself imports the 'call' function
- from the 'subprocess' module, we ned to rename this one so that
+ from the 'subprocess' module, we need to rename this one so that
  it doesn't get shadowed and can be used for testing """
 from mock import call as mock_call
 
