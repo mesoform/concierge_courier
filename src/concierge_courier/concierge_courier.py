@@ -2,8 +2,9 @@
 
 import json
 import sys
+import os
 
-# import requests
+import requests
 # import socket
 from subprocess import CalledProcessError, check_output
 import time
@@ -28,60 +29,65 @@ def __mark_end_time():
     print(time.time() - __start_time)
 
 
-def discover_timers():
+def discover_timers(path, port=None):
     """
     :return: string
     Zabbix formatted JSON of keys
     """
-    # discovery_list = {}
-    # discovery_list['data'] = []
 
-    # nodeServices = requests.get(url).text
-
-    # services = json.loads(nodeServices)
-    # for service in services:
-    #    if service['CheckID'] != 'serfHealth':
-    #        #print service['Status']
-    #        #print service['ServiceName']
-    #        zbx_item = {"{#SERVICEID}": service['ServiceID']}
-    #        discovery_list['data'].append(zbx_item)
-    # print json.dumps(discovery_list, indent=4, sort_keys=True)
-    #
-
-    with open("/tmp/metrics.json", "r") as metrics_file:
-        keys = metrics_file.read()
+    if not os.path.exists(path):
+        # we only want to be able make call for metrics locally otherwise
+        # we risk being able to have false data injected
+        if port:
+            port = ':' + port
+        url = 'http://localhost' + port + path
+        keys = requests.get(url)
         keys_json = json.loads(keys)
 
-        # Note: List comprehension contained within
-        # dictionary
         discovery_data_dict = \
             {'data': [{"{#TIMER}": key} for key in keys_json['timers']]}
-        print(__as_json(discovery_data_dict))
+    else:
+        with open(path, "r") as metrics_file:
+            keys = metrics_file.read()
+            keys_json = json.loads(keys)
+
+            # Note: List comprehension contained within
+            # dictionary
+            discovery_data_dict = \
+                {'data': [{"{#TIMER}": key} for key in keys_json['timers']]}
+    print(__as_json(discovery_data_dict))
 
 
-def get_timers():
-    # url = 'http://127.0.0.1:8500/v1/health/node/{0}'.format(nodeName)
-    # nodeServices = requests.get(url).text
-    # services = json.loads(nodeServices)
-    # status = 0
-    # for service in services:
-    #    if service['ServiceID'] == ServiceID:
-    #        if service['Status'] == 'passing':
-    #            status = 1
-    #        else:
-    #            status = 0
-    # print status
+def get_timers(path, port=None):
+    """
+    collect metrics from application and process for delivery
+    :param path: HTTP of file path
+    :param port: HTTP port for metrics interface, if needed
+    :return: None
+    """
     metric_type = "timer"
-
-    with open("/tmp/metrics.json", "r") as metrics_file:
-        keys = metrics_file.read()
+    if not os.path.exists(path):
+        # we only want to be able make call for metrics locally otherwise
+        # we risk being able to have false data injected
+        if port:
+            port = ':' + port
+        url = 'http://localhost' + port + path
+        keys = requests.get(url)
         keys_json = json.loads(keys)
-        '''
-        call out to write_metrics function, passing the file it should write. Just the timers' objects
-        '''
         write_metrics("/tmp/{}_metrics_zabbix.sender".format(metric_type),
                       keys_json['timers'],
                       metric_type)
+    else:
+        with open(path, "r") as metrics_file:
+            keys = metrics_file.read()
+            keys_json = json.loads(keys)
+            '''
+            call out to write_metrics function, passing the file it should 
+            write. Just the timers' objects
+            '''
+            write_metrics("/tmp/{}_metrics_zabbix.sender".format(metric_type),
+                          keys_json['timers'],
+                          metric_type)
     send_metrics(metric_type)
 
 
@@ -185,12 +191,15 @@ def __as_json(raw_dict):
 
 if __name__ == '__main__':
     action = sys.argv[1].lower()
-    url = sys.argv[2].lower()
+    if not sys.argv[2].lower():
+        metrics_path = '/tmp/metrics.json'
+    else:
+        metrics_path = sys.argv[2].lower()
 
     if action == 'discover_timers':
-        discover_timers()
+        discover_timers(metrics_path)
     elif action == 'get_timers':
         # We want to return how long it took for the script to run
         __mark_start_time()
-        get_timers()
+        get_timers(metrics_path)
         __mark_end_time()
