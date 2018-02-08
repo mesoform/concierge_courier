@@ -8,13 +8,6 @@ import sys
 from subprocess import CalledProcessError, check_output
 import time
 
-# This is needed for querying Consul API but should be something passed
-#  as a parameter and appended to a URL to make generic
-# nodeName = socket.gethostname()
-
-"""
-Hide start time to the external world by protecting it with __ prefix.
-"""
 __start_time = None
 
 
@@ -38,7 +31,7 @@ def __mark_end_time():
 def discover_timers():
     """
     :return: string
-    Zabbix formatted JSON of keys 
+    Zabbix formatted JSON of keys
     """
     # discovery_list = {}
     # discovery_list['data'] = []
@@ -55,24 +48,12 @@ def discover_timers():
     # print json.dumps(discovery_list, indent=4, sort_keys=True)
     #
 
-    """ Temporarily keep code for reference """
-    # discovery_list = {'data': []}
-    # with open("/tmp/metrics.json", "r") as metrics_file:
-    #     keys = metrics_file.read()
-    #     keys = json.loads(keys)
-    #     for key in keys['timers']:
-    #         zbx_item = {"{#TIMER}": key}
-    #         discovery_list['data'].append(zbx_item)
-
     with open("/tmp/metrics.json", "r") as metrics_file:
         keys = metrics_file.read()
         keys_json = json.loads(keys)
-        '''
-        Use list accumulation to fill data dictionary in one go.
-        The square braces here are NOT part of the output, they are
-        special characters that define a list and Python provides syntactic
-        sugar that allows it to be wrapped (e.g. "{'data': " and "}").
-        '''
+
+        # Note: List comprehension contained within
+        # dictionary
         discovery_data_dict = \
             {'data': [{"{#TIMER}": key} for key in keys_json['timers']]}
         print(__as_json(discovery_data_dict))
@@ -92,15 +73,11 @@ def get_timers():
     # print status
     metric_type = "timer"
 
-    # using with open() as file saves having to close of the file at the end.
     with open("/tmp/metrics.json", "r") as metrics_file:
-        # read file as a string, assign to keys
         keys = metrics_file.read()
-        # deserialise string to a dictionary
         keys_json = json.loads(keys)
         '''
-        call out to write_metrics function, passing the file it should write,
-        just the timers' objects
+        call out to write_metrics function, passing the file it should write. Just the timers' objects
         '''
         write_metrics("/tmp/{}_metrics_zabbix.sender".format(metric_type),
                       keys_json['timers'],
@@ -142,9 +119,6 @@ def consume_metric_records(metrics_dict, metric_consumer_fn, metric_type):
     :param metric_type:            what type the metric is.
     """
     for metric_set_name, metric_set in metrics_dict.items():
-
-        # dict.items() return a copy of the dictionary
-        # as a list in K/V pair format key, value
         for metric_key, metric_value in metric_set.items():
             """
             here were passing back (callback) the returned response from
@@ -155,13 +129,9 @@ def consume_metric_records(metrics_dict, metric_consumer_fn, metric_type):
                 get_metric_record(metric_set_name, metric_key, metric_value,
                                   metric_type)
             )
-            # zbx_item = {"{#TIMER}": key}
-            # discovery_list['data'].append(zbx_item)
-            # print json.dumps(discovery_list, indent=4, sort_keys=True)
 
 
 def send_metrics(metric_type):
-    # {} is being used here to be replace with metric_type (like xargs)
     filename = "/tmp/{}_metrics_zabbix.sender".format(metric_type)
     # For troubleshooting connectivity:
     # call("zabbix_sender -vv -c /etc/coprocesses/zabbix/zabbix_agentd.conf" +
@@ -199,8 +169,6 @@ def get_metric_record(metric_set_name, metric_key, metric_value, metric_type):
     :return:  str: String in the appropriate format:
               '- {metric_type}[{metric_set_name}.{metric_key}] {metric_value}'
     """
-    # python versions <2.7 require indices to be included in the braces. E.g.
-    # "- {0}[{1}.{2}] {3}
     return "- {}[{}.{}] {}\n" \
         .format(metric_type, metric_set_name, metric_key, metric_value)
 
@@ -215,11 +183,6 @@ def __as_json(raw_dict):
     return json.dumps(raw_dict, indent=4, sort_keys=True)
 
 
-"""
-put into an if statement so that if this module is imported,
-the following lines aren't loaded and ran as well. __name__ is
-special property
-"""
 if __name__ == '__main__':
     action = sys.argv[1].lower()
     url = sys.argv[2].lower()
