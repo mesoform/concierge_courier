@@ -1,4 +1,3 @@
-#!/usr/bin/python
 """
 allow for Python2 and Python 3 import syntax of relative and absolute imports
 used in imported modules like unittest. Suggest that absolute is needed
@@ -6,17 +5,12 @@ because tests are being ran from the unittest module (AppMetricsTest() extends
 TestCase
 """
 from __future__ import absolute_import
-
 from unittest import TestLoader, TestCase
-
-# mock is used to simulate any dependencies by returning some predefined result
 from mock import MagicMock
-
-""" Since the concierge_courier module itself imports the 'call' function
- from the 'subprocess' module, we need to rename this one so that
- it doesn't get shadowed and can be used for testing """
+# Since the concierge_courier module itself imports the 'call' function
+# from the 'subprocess' module, we ned to rename this one so that
+# it doesn't get shadowed and can be used for testing """
 from mock import call as mock_call
-
 from concierge_courier.concierge_courier import *
 
 
@@ -28,7 +22,7 @@ class AppMetricsTest(TestCase):
         """ Test expected format on valid values """
         record = get_metric_record(metric_set_name='foo.bar',
                                    metric_key='mean_rate',
-                                   metric_value=0.5, metric_type='timer')
+                                   metric_value=0.5, metrics_type='timer')
 
         print("get_metric_record returned: \n'{}'".format(record))
         # function as part of TestCase that asserts an equal match of any type
@@ -38,7 +32,7 @@ class AppMetricsTest(TestCase):
     def test_get_metric_record_empty_values(self):
         """ Test that it doesn't break on bad input """
         record = get_metric_record(metric_set_name='', metric_key='',
-                                   metric_value='', metric_type='')
+                                   metric_value='', metrics_type='')
 
         print("get_metric_record returned: \n'{}'".format(record))
         self.assertEqual(record, "- [.] \n")
