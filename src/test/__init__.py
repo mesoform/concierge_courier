@@ -1,3 +1,3 @@
 __all__ = [
-    'test_courier'
+    'test_concierge_courier.py'
 ]
