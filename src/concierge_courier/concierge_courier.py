@@ -4,11 +4,11 @@ import json
 import sys
 import os
 import requests
-# import socket
 from subprocess import call
 import time
 
 __start_time = None
+_PORT = ''
 __ALL_METRICS_TYPES = [
     'timers',
     'counters',
@@ -34,25 +34,7 @@ def __mark_end_time():
     print(time.time() - __start_time)
 
 
-def discover_metrics(path, port=None, metric_types=__ALL_METRICS_TYPES):
-    """
-    :return: Zabbix formatted JSON of keys
-    """
-    if not os.path.exists(path):
-        # we only want to be able make call for metrics locally otherwise
-        # we risk being able to have false data injected
-        if port:
-            port = ':' + port
-        url = 'http://localhost' + port + path
-        keys = requests.get(url)
-        # print(to_discovery_json_for(json.loads(keys), metric_types))
-    else:
-        with open(path, "r") as metrics_file:
-            keys = metrics_file.read()
-    print(to_discovery_json_for(json.loads(keys), metric_types))
-
-
-def to_discovery_json_for(keys_json, metrics):
+def to_discovery_json_for(keys_json, metrics=__ALL_METRICS_TYPES):
     """
     Use list accumulation to fill data dictionary in one go.
     The square braces here are NOT part of the output, they are
@@ -69,35 +51,35 @@ def to_discovery_json_for(keys_json, metrics):
     )
 
 
-def get_metrics(metrics_types=__ALL_METRICS_TYPES,
-                path="/tmp/metrics.json", port=None,
+def get_metrics(json_keys, metrics_types=__ALL_METRICS_TYPES,
                 output_filename="/tmp/metrics_zabbix.sender"):
     """
 
+    :param json_keys: TODO
     :param metrics_types: list of metric types to collect
-    :param path: HTTP request path or file path
-    :param port: HTTP port
     :param output_filename: temporary file used to store formatted metrics
             before sending
     """
-    if not os.path.exists(path):
-        # we only want to be able make call for metrics locally otherwise
-        # we risk being able to have false data injected
-        if port:
-            port = ':' + port
-        url = 'http://localhost' + port + path
-        keys = requests.get(url)
-        keys_json = json.loads(keys)
-    else:
-        with open(path, "r") as metrics_file:
-            keys = metrics_file.read()
-            keys_json = json.loads(keys)
     with open(output_filename, "w") as sender_file:
         for metrics_type in metrics_types:
-            consume_metric_records(keys_json[metrics_type],
+            consume_metric_records(json_keys[metrics_type],
                                    sender_file.write,
                                    metrics_type)
     send_metrics(output_filename)
+
+
+def get_http_metrics(path):
+    # we only want to be able make call for metrics locally otherwise
+    # we risk being able to have false data injected
+    port_segment = ':' + _PORT if _PORT else ''
+    url = 'http://localhost' + port_segment + path
+    return json.loads(requests.get(url))
+
+
+def get_file_metrics(path):
+    with open(path, "r") as metrics_file:
+        keys = metrics_file.read()
+        return json.loads(keys)
 
 
 def consume_metric_records(metrics_dict, metric_consumer_fn, metrics_type):
@@ -118,11 +100,6 @@ def consume_metric_records(metrics_dict, metric_consumer_fn, metrics_type):
     """
     for metric_set_name, metric_set in metrics_dict.items():
         for metric_key, metric_value in metric_set.items():
-            """
-            here were passing back (callback) the returned response from
-            get_metric_record function to sender_file.write file function
-            passed to us from write metrics
-            """
             metric_consumer_fn(
                 get_metric_record(metric_set_name, metric_key, metric_value,
                                   metrics_type)
@@ -176,22 +153,26 @@ def __as_json(raw_dict):
     return json.dumps(raw_dict, indent=4, sort_keys=True)
 
 
-"""
-put into an if statement so that if this module is imported,
-the following lines aren't loaded and ran as well. __name__ is
-special property
-"""
 if __name__ == '__main__':
+    # We want to return how long it took for the script to run
+    __mark_start_time()
+
     action = sys.argv[1].lower()
     if not sys.argv[2].lower():
         metrics_path = '/tmp/metrics.json'
     else:
         metrics_path = sys.argv[2].lower()
+    if sys.argv[3]:
+        _PORT = sys.argv[3]
+    else:
+        _PORT = ''
+
+    metric_keys = get_file_metrics(metrics_path) \
+        if os.path.exists(metrics_path) else get_http_metrics(metrics_path)
 
     if action == 'query_metrics':
-        discover_metrics(metrics_path)
+        to_discovery_json_for(metric_keys)
     elif action == 'get_metrics':
-        # We want to return how long it took for the script to run
-        __mark_start_time()
         get_metrics(metrics_path)
-        __mark_end_time()
+
+    __mark_end_time()
