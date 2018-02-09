@@ -8,7 +8,6 @@ from subprocess import call
 import time
 
 __start_time = None
-_PORT = ''
 __ALL_METRICS_TYPES = [
     'timers',
     'counters',
@@ -68,10 +67,10 @@ def get_metrics(json_keys, metrics_types=__ALL_METRICS_TYPES,
     send_metrics(output_filename)
 
 
-def get_http_metrics(path):
+def get_http_metrics(path, host_port):
     # we only want to be able make call for metrics locally otherwise
     # we risk being able to have false data injected
-    port_segment = ':' + _PORT if _PORT else ''
+    port_segment = ':' + host_port if host_port else ''
     url = 'http://localhost' + port_segment + path
     return json.loads(requests.get(url))
 
@@ -154,21 +153,20 @@ def __as_json(raw_dict):
 
 
 if __name__ == '__main__':
+    arg_size = len(sys.argv)
+    if arg_size < 2:
+        raise ValueError('Not enough arguments, at least 2 expected')
+
     # We want to return how long it took for the script to run
     __mark_start_time()
 
     action = sys.argv[1].lower()
-    if not sys.argv[2].lower():
-        metrics_path = '/tmp/metrics.json'
-    else:
-        metrics_path = sys.argv[2].lower()
-    if sys.argv[3]:
-        _PORT = sys.argv[3]
-    else:
-        _PORT = ''
+    metrics_path = sys.argv[2].lower() if arg_size > 2 else '/tmp/metrics.json'
+    port = sys.argv[3] if arg_size == 3 else None
 
     metric_keys = get_file_metrics(metrics_path) \
-        if os.path.exists(metrics_path) else get_http_metrics(metrics_path)
+        if os.path.exists(metrics_path) \
+        else get_http_metrics(metrics_path, port)
 
     if action == 'query_metrics':
         to_discovery_json_for(metric_keys)
