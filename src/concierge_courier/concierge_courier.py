@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
 import json
-import sys
 import os
 import requests
 from subprocess import call
 import time
+import argparse
 
 __start_time = None
 __ALL_METRICS_TYPES = [
@@ -14,6 +14,46 @@ __ALL_METRICS_TYPES = [
     'gauges',
     'histograms'
 ]
+
+
+def get_args():
+    """
+    parses arguments passed on command line when running program
+    :return: list of arguments
+    """
+    parser = argparse.ArgumentParser(
+        description='Queries a given location to discover what metrics we have'
+                    'available, collect and deliver them to an event management'
+                    'server.\n'
+                    'We can query a local file or a local HTTP endpoint. Simply'
+                    ' provide a path (--path) and if there is no such file, the'
+                    ' courier \nwill then attempt to query a localhost '
+                    'interface. This allows easy testing. If you\'re HTTP '
+                    'endpoint requires an additional \nport, specify this with '
+                    '--port',
+        formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('action', choices=('discover', 'deliver'),
+                        help='\ndiscover:\n'
+                             'Query our metrics resource and discover what '
+                             'metrics are available. Then construct a manifest '
+                             'object\nand return to our event management '
+                             'system.\n'
+                             'deliver:\n'
+                             'Query our metrics resource, collect the latest '
+                             'item values and deliver them to our event '
+                             'management\nsystem.\n'
+                             '**Currently we only support Zabbix discovery'
+                             'manifest and Dropwizard metrics resource**')
+    parser.add_argument('--path', default='',
+                        help='Path location to the metrics resource. If this is'
+                             ' a file on disk, the file will be processed. If '
+                             'no\nfile exists, concierge_courier will query:'
+                             'http://localhost/metics/path/provided')
+    parser.add_argument('--port', default=None,
+                        help='If our HTTP metrics resource requires a port '
+                             'other than port 80. This has no effect if our '
+                             'metrics\nresource is a file on disk')
+    return parser.parse_args()
 
 
 def __mark_start_time():
@@ -152,25 +192,16 @@ def __as_json(raw_dict):
     return json.dumps(raw_dict, indent=4, sort_keys=True)
 
 
+args = get_args()
 if __name__ == '__main__':
-    arg_size = len(sys.argv)
-    if arg_size < 2:
-        raise ValueError('Not enough arguments, at least 2 expected')
+    metric_keys = get_file_metrics(args.path) \
+        if os.path.exists(args.path) \
+        else get_http_metrics(args.path, args.port)
 
-    # We want to return how long it took for the script to run
-    __mark_start_time()
-
-    action = sys.argv[1].lower()
-    metrics_path = sys.argv[2].lower() if arg_size > 2 else '/tmp/metrics.json'
-    port = sys.argv[3] if arg_size == 3 else None
-
-    metric_keys = get_file_metrics(metrics_path) \
-        if os.path.exists(metrics_path) \
-        else get_http_metrics(metrics_path, port)
-
-    if action == 'query_metrics':
-        to_discovery_json_for(metric_keys)
-    elif action == 'get_metrics':
-        get_metrics(metrics_path)
-
-    __mark_end_time()
+    if args.action == 'discover':
+        print(to_discovery_json_for(metric_keys))
+    elif args.action == 'deliver':
+        # We want to return how long it took for the script to run
+        __mark_start_time()
+        get_metrics(metric_keys)
+        __mark_end_time()
