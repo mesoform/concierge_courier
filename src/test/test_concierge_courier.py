@@ -12,6 +12,7 @@ from mock import MagicMock
 # it doesn't get shadowed and can be used for testing """
 from mock import call as mock_call
 from concierge_courier.concierge_courier import *
+import requests_mock
 
 
 # extend TestCase class which considers every defined method in this class as a
@@ -20,9 +21,9 @@ from concierge_courier.concierge_courier import *
 class AppMetricsTest(TestCase):
     def test_get_metric_record(self):
         """ Test expected format on valid values """
-        record = get_metric_record(metric_set_name='foo.bar',
-                                   metric_key='mean_rate',
-                                   metric_value=0.5, metrics_type='timer')
+        record = sender_formatter(metric_set_name='foo.bar',
+                                  metric_key='mean_rate',
+                                  metric_value=0.5, metrics_type='timer')
 
         print("get_metric_record returned: \n'{}'".format(record))
         # function as part of TestCase that asserts an equal match of any type
@@ -31,8 +32,8 @@ class AppMetricsTest(TestCase):
 
     def test_get_metric_record_empty_values(self):
         """ Test that it doesn't break on bad input """
-        record = get_metric_record(metric_set_name='', metric_key='',
-                                   metric_value='', metrics_type='')
+        record = sender_formatter(metric_set_name='', metric_key='',
+                                  metric_value='', metrics_type='')
 
         print("get_metric_record returned: \n'{}'".format(record))
         self.assertEqual(record, "- [.] \n")
@@ -58,7 +59,8 @@ class AppMetricsTest(TestCase):
         # open(filename, "w")
         mock_callback.write.return_value = None
 
-        consume_metric_records(test_dict, mock_callback.write, 'timer')
+        consume_metric_records(test_dict, mock_callback.write, 'timer',
+                               sender_formatter)
 
         mock_callback.write.assert_has_calls(
             [mock_call("- timer[foo.count] 5\n"),

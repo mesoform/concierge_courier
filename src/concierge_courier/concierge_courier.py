@@ -14,6 +14,7 @@ __ALL_METRICS_TYPES = [
     'gauges',
     'histograms'
 ]
+discovered_metrics = []
 
 
 def get_args():
@@ -73,7 +74,18 @@ def __mark_end_time():
     print(time.time() - __start_time)
 
 
-def to_discovery_json_for(keys_json, metrics=__ALL_METRICS_TYPES):
+def discover_metrics(keys_dict, metric_types=__ALL_METRICS_TYPES):
+    """
+    :return: Zabbix formatted JSON of keys
+    """
+    for metric_type in metric_types:
+        consume_metric_records(keys_dict[metric_type],
+                               discovered_metrics.append, metric_type,
+                               discovery_formatter)
+    print(to_discovery_json_for(discovered_metrics))
+
+
+def to_discovery_json_for(keys_list):
     """
     Use list accumulation to fill data dictionary in one go.
     The square braces here are NOT part of the output, they are
@@ -83,27 +95,26 @@ def to_discovery_json_for(keys_json, metrics=__ALL_METRICS_TYPES):
     return __as_json(
         {
             'data': [
-                {"{#METRIC}": key} for metric in metrics
-                for key in keys_json[metric]
+                {"{#METRIC}": key} for key in keys_list
             ]
         }
     )
 
 
-def get_metrics(json_keys, metrics_types=__ALL_METRICS_TYPES,
+def get_metrics(keys_dict, metrics_types=__ALL_METRICS_TYPES,
                 output_filename="/tmp/metrics_zabbix.sender"):
     """
 
-    :param json_keys: TODO
+    :param keys_dict: the whole set of metric keys as a dictionary
     :param metrics_types: list of metric types to collect
     :param output_filename: temporary file used to store formatted metrics
             before sending
     """
     with open(output_filename, "w") as sender_file:
         for metrics_type in metrics_types:
-            consume_metric_records(json_keys[metrics_type],
-                                   sender_file.write,
-                                   metrics_type)
+            consume_metric_records(keys_dict[metrics_type],
+                                   sender_file.write, metrics_type,
+                                   sender_formatter)
     send_metrics(output_filename)
 
 
@@ -117,16 +128,19 @@ def get_http_metrics(path, host_port):
 
 def get_file_metrics(path):
     with open(path, "r") as metrics_file:
-        keys = metrics_file.read()
-        return json.loads(keys)
+        metrics_json = metrics_file.read()
+        return json.loads(metrics_json)
 
 
-def consume_metric_records(metrics_dict, metric_consumer_fn, metrics_type):
+def consume_metric_records(metrics_dict, metric_consumer_fn, metrics_type,
+                           metric_formatter_fn):
     """
     Loops through the items in the input dictionary, creates a string
     record representing each metric contained in such a metric item and
     sends it for processing to the consumer input function
 
+    :param metric_formatter_fn:    function to use which returns the required
+                                   output format
     :param metrics_dict:           dictionary containing metrics that represent
                                    objects each property of which is a
                                    separate metric value
@@ -135,13 +149,13 @@ def consume_metric_records(metrics_dict, metric_consumer_fn, metrics_type):
                                    This callback will be invoked immediately
                                    upon record acquisition so that progress
                                    is incremental
-    :param metrics_type:            what type the metric is.
+    :param metrics_type:           what type the metric is.
     """
     for metric_set_name, metric_set in metrics_dict.items():
         for metric_key, metric_value in metric_set.items():
             metric_consumer_fn(
-                get_metric_record(metric_set_name, metric_key, metric_value,
-                                  metrics_type)
+                metric_formatter_fn(metric_set_name, metric_key, metric_value,
+                                    metrics_type)
             )
 
 
@@ -158,7 +172,7 @@ def send_metrics(filename):
     call(command_template.format(filename), shell=True)
 
 
-def get_metric_record(metric_set_name, metric_key, metric_value, metrics_type):
+def sender_formatter(metric_set_name, metric_key, metric_value, metrics_type):
     """
     Creates a Zabbix processable string line denoting this metric value.
     Line is also terminated with a carriage return at the end.
@@ -182,6 +196,23 @@ def get_metric_record(metric_set_name, metric_key, metric_value, metrics_type):
         .format(metrics_type, metric_set_name, metric_key, metric_value)
 
 
+# noinspection PyUnusedLocal
+def discovery_formatter(metric_set_name, metric_key,
+                        metric_value, metrics_type):
+    """
+    Creates a Zabbix processable string line denoting a flattened metric name
+    from a given keys of original dictionary
+
+    :param metric_set_name: str: what type the metric is.
+    :param metric_key:      str: name prefix of the recorded the metric
+    :param metric_value:    NOT USED
+    :param metrics_type:    str: metric property name
+    :return:    str: String in the appropriate format:
+              '{metrics_type}.{metric_set_name}.{metric_key}'
+    """
+    return "{}.{}.{}".format(metrics_type, metric_set_name, metric_key)
+
+
 def __as_json(raw_dict):
     """
     Converts any input dictionary to a pretty printed JSON
@@ -192,16 +223,16 @@ def __as_json(raw_dict):
     return json.dumps(raw_dict, indent=4, sort_keys=True)
 
 
-args = get_args()
 if __name__ == '__main__':
-    metric_keys = get_file_metrics(args.path) \
+    args = get_args()
+    all_metrics_dict = get_file_metrics(args.path) \
         if os.path.exists(args.path) \
         else get_http_metrics(args.path, args.port)
 
     if args.action == 'discover':
-        print(to_discovery_json_for(metric_keys))
+        discover_metrics(all_metrics_dict)
     elif args.action == 'deliver':
         # We want to return how long it took for the script to run
         __mark_start_time()
-        get_metrics(metric_keys)
+        get_metrics(all_metrics_dict)
         __mark_end_time()
