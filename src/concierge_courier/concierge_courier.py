@@ -18,7 +18,6 @@ __ALL_METRICS_TYPES = [
     'gauges',
     'histograms'
 ]
-discovered_metrics = set()
 
 
 def get_args():
@@ -82,6 +81,7 @@ def discover_metrics(keys_dict, metric_types=__ALL_METRICS_TYPES):
     """
     :return: Zabbix formatted JSON of keys
     """
+    discovered_metrics = set()
     for metric_type in metric_types:
         consume_metric_records(keys_dict[metric_type],
                                discovered_metrics.add, metric_type,
