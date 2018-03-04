@@ -1,5 +1,9 @@
 #!/usr/bin/python
-
+"""
+@author: Gareth Brown
+@contact: gareth@mesoform.com
+@date: 2017
+"""
 import json
 import os
 import requests
@@ -14,7 +18,7 @@ __ALL_METRICS_TYPES = [
     'gauges',
     'histograms'
 ]
-discovered_metrics = []
+discovered_metrics = set()
 
 
 def get_args():
@@ -80,7 +84,7 @@ def discover_metrics(keys_dict, metric_types=__ALL_METRICS_TYPES):
     """
     for metric_type in metric_types:
         consume_metric_records(keys_dict[metric_type],
-                               discovered_metrics.append, metric_type,
+                               discovered_metrics.add, metric_type,
                                discovery_formatter)
     print(to_discovery_json_for(discovered_metrics))
 
@@ -183,7 +187,7 @@ def sender_formatter(metric_set_name, metric_key, metric_value, metrics_type):
     Output: '- timers[test.test-timer.count] 45\n'
     hyphen in this output example is replaced by Zabbix for the system hostname
 
-    :param metrics_type:       str: what type the metric is.
+    :param metrics_type:      str: what type the metric is.
     :param metric_set_name:   str: name prefix of the recorded the metric
     :param metric_key:        str: metric property name
     :param metric_value:      object: recorded metric value
@@ -192,7 +196,7 @@ def sender_formatter(metric_set_name, metric_key, metric_value, metrics_type):
     """
     # python versions <2.7 require indices to be included in the braces. E.g.
     # "- {0}[{1}.{2}] {3}
-    return "- {}[{}.{}] {}\n" \
+    return "- enfield[{}.{}.{}] {}\n" \
         .format(metrics_type, metric_set_name, metric_key, metric_value)
 
 
@@ -203,14 +207,14 @@ def discovery_formatter(metric_set_name, metric_key,
     Creates a Zabbix processable string line denoting a flattened metric name
     from a given keys of original dictionary
 
-    :param metric_set_name: str: what type the metric is.
-    :param metric_key:      str: name prefix of the recorded the metric
+    :param metric_set_name: str: name prefix of the recorded the metric
+    :param metric_key:      NOT USED
     :param metric_value:    NOT USED
-    :param metrics_type:    str: metric property name
+    :param metrics_type:    str: what type the metric is.
     :return:    str: String in the appropriate format:
               '{metrics_type}.{metric_set_name}.{metric_key}'
     """
-    return "{}.{}.{}".format(metrics_type, metric_set_name, metric_key)
+    return "{}.{}".format(metrics_type, metric_set_name)
 
 
 def __as_json(raw_dict):
